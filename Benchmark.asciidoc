@@ -1,0 +1,39 @@
+== 代號說明
+我們主要以虛擬機器測試，在此簡單說明一下我們使用的代號：
+
+ * host: 虛擬機主機，包含 hypervisor (type 1 / type 2) 和 host OS (type 2) 
+ * linuxrouter: 本身是 Linux 虛擬機，作為 router 使用，同時可接到 WAN 和 LAN
+ * bsdrouter: 本身是 BSD 虛擬機，作為 router 使用，同時可接到 WAN 和 LAN
+ * linuxserver：本身是 Linux 虛擬機，對外提供服務，例如 HTTP，但僅能接到 LAN
+ * bsdserver：本身是 BSD 虛擬機，對外提供服務，例如 HTTP，但僅能接到 LAN
+
+== 2014-05-10 測試
+使用 Linux 作為 router，測試小型 (< 5 KiB) 靜態網頁。我們在 host 上用 `ab` (ApacheBench) 測試，測試的指令是：
+----------------------
+ab -n 50000 -c 5 http://hostname/
+----------------------
+每次測試前都會重新啟動 web server 和 router 上對應的程式。
+
+ * 機器說明：
+  - host: Xen 4.4.0, Dom0 Fedora 20, Linux 3.14.2
+  - linuxrouter: Fedora 20, Linux 3.14.2
+  - linuxserver: Arch Linux, Linux 3.14.2, Apache 2.4.9, NGINX 1.6.0, lighttpd 1.4.35
+  - bsdserver: FreeBSD 10.0-RELEASE-p2, Apache 2.4.9, NGINX 1.6.0, lighttpd 1.4.35
+ * 網路說明：
+  - WAN: Dom0 Linux bridge，與實體網卡共同橋接以連至外網
+  - LAN: Dom0 Linux bridge，只有虛擬網卡，必須由 linuxrouter 轉送才能連至外網
+
+ * 測試結果：數字表示所需秒數，括號內數字表示和直接連線的差異
+
+[grid="rows",options="header",cols="7"]
+|=============================
+| 連線方式 3+| linuxserver 3+| bsdserver
+|| Apache | NGINX | lighttpd | Apache | NGINX | lighttpd
+| 直接連線 (不經過 router)
+| 2.278         | 2.130         | 2.225
+| 2.068         | 1.822         | 2.107
+| linuxrouter IPTables
+| 2.980 (76.4%) | 2.728 (78.1%) | 2.742 (81.1%)
+| 3.097 (66.8%) | 2.767 (65.8%) | 3.002 (70.2%)
+|=============================
+
