@@ -1,5 +1,6 @@
 == 大綱與目標
-link:Proposal[Proposal]
+ * link:Proposal[學期初 Proposal]
+ * link:Benchmark[現有軟體效能測試]
 
 == 預計完成事項
 [grid="rows"]
@@ -27,5 +28,3 @@ link:Proposal[Proposal]
   link:http://www.freebsd.org/doc/en/books/handbook/firewalls-ipfw.html[IPFW]
                                                      | NAT server + firewall | BSD kernel
 |=============================================================================================
-
-== 現有軟體效能評測
