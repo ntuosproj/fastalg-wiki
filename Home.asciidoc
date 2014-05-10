@@ -1,0 +1,31 @@
+== 大綱與目標
+link:Proposal[Proposal]
+
+== 預計完成事項
+[grid="rows"]
+|==============================
+| 測試類似軟體效能     | _2014-05-10 未完成_  | linuxrouter, linuxserver, bsdrouter, bsdserver
+| 製作 user mode 版本  | _2014-05-10 未完成_  | 可能參考 sslh 以及看看 regular expression 怎麼弄？
+| 修改 nftables        | _2014-05-10 未完成_  | 可能看看能不能做成 kernel module 而不改 kernel？
+| 修改 pf              | _2014-05-10 未完成_  | 可能看看能不能做成 kernel module 而不改 kernel？
+|==============================
+
+== 現有類似軟體列表
+[grid="rows",options="header"]
+|=============================================================================================
+| 軟體名稱與連結                                     | 功能                  | 執行環境
+| link:http://www.rutschle.net/tech/sslh.shtml[sslh] | ssl / ssh multiplexer | User mode
+| link:http://httpd.apache.org/docs/2.4/mod/mod_proxy.html[Apache]
+  link:http://nginx.com/resources/admin-guide/reverse-proxy[NGINX]
+  link:http://redmine.lighttpd.net/projects/lighttpd/wiki/Docs_ModProxy[lighttpd]
+                                                     | reverse proxy         | User mode
+| link:http://haproxy.1wt.eu/[HAProxy]               | reverse proxy         | User mode
+| link:http://www.netfilter.org/projects/iptables/index.html[iptables]
+  link:http://www.netfilter.org/projects/nftables/index.html[nftables]
+                                                     | NAT server + firewall | Linux kernel
+| link:http://www.openbsdindia.org/faq/pf/index.html[PF]
+  link:http://www.freebsd.org/doc/en/books/handbook/firewalls-ipfw.html[IPFW]
+                                                     | NAT server + firewall | BSD kernel
+|=============================================================================================
+
+== 現有軟體效能評測
