@@ -5,8 +5,10 @@
 == 預計完成事項
 [grid="rows"]
 |==============================
-| 測試類似軟體效能     | *2014-05-17 進行中*  | 缺 bsdrouter，看看 pf 要怎麼用？
-| 製作 user mode 版本  | _2014-05-10 未完成_  | 可能參考 sslh 以及看看 regular expression 怎麼弄？
+| 測試類似軟體效能     | *2014-05-17 已暫停*  | 缺 bsdrouter，pf 弄不出來先擱置
+| user mode 版本  | *2014-06-02 進行中*  | 參考 sslh 以及看看 regular expression 怎麼弄？
+| link:NetfilterUserspaceQueue[netfilter userspace queue 版本]
+| *2014-06-02 進行中* | 參考 libnetfilter_queue 中的 examples/nf-queue.c
 | 修改 nftables        | _2014-05-10 未完成_  | 可能看看能不能做成 kernel module 而不改 kernel？
 | 修改 pf              | _2014-05-10 未完成_  | 可能看看能不能做成 kernel module 而不改 kernel？
 |==============================
