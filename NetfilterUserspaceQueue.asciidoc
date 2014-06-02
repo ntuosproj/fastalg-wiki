@@ -1,0 +1,62 @@
+== 關於 Netlink
+ * *Netlink* 是 Linux 下的一種 socket (`AF_NETLINK`)，用來在 user 和 kernel 之間溝通
+ * *Netlink* 就是個 datagram socket，可用 `send` 和 `recv`，詳細請參考 netlink(7)
+ * *Netlink* 資料傳送格式請參考 Linux source 的 https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/tree/include/net/netlink.h?id=refs/tags/v3.14.5[include/net/netlink.h]
+ * 為方便操作，我們可以使用 *libmnl* 幫我們處理 Netlink 的 protocol
+
+== 運作原理與操作方式
+[WARNING]
+操作與測試過程中可能導致網路斷線，強烈建議直接在本機 console 上操作。
+
+ . 先讓封包進入 kernel 提供的指定的 queue 中
+ . 接著會有一個 daemon 將封包從 queue 中取出，並決定此封包應轉送到何處
+ . 此 daemon 會將封包加上標記，並告知 kernel 重跑整個 chain (`NF_REPEAT`)
+ . 於是我們的 NFTables 設定可能會長這樣：
+------------------------------------------------------------------------
+table ip nat {
+  chain prerounting {
+    type nat hook prerouting priority 4294967146;
+    mark < 1 queue num 0 options bypass
+    meta mark 1 dnat my_http_server_1:80
+    meta mark 2 dnat my_http_server_2:80
+    meta mark 3 dnat my_http_server_3:80
+    ...
+  }
+}
+------------------------------------------------------------------------
+  * queue 和 mark 編號可以自行指定，這裡我們使用第 0 個 queue
+  * 封包剛進來時並沒有 mark，所以會進入 queue 中讓 daemon 處理
+  * 重跑此 chain 時，因為 mark 已改變，不再進入 queue，所以我們可以以此為依據 DNAT 到不同的機器
+
+== 查看封包內容
+執行完 `nfq_nlmsg_parse(nlh, attr)` 以後，我們可以在 `attr[NFQA_PAYLOAD]` 拿到封包內容（可能是 IPv4 或 IPv6），於是我們就能使用以下一些 *libnetfilter_queue* 提供的 helper functions 查看封包資料。
+[source,c]
+// 取出整個 IPv4 封包
+char *ipv4_payload = mnl_attr_get_payload (attr[NFQA_PAYLOAD]);
+uint16_t ipv4_payload_len = mnl_attr_get_payload_len (attr[NFQA_PAYLOAD]);
+struct iphdr *ipv4_hdr = (struct iphdr*)(ipv4_payload);
+// 把封包丟進 pkt_buff
+struct pkt_buff *ipv4_pktb = pktb_alloc (AF_INET, ipv4_payload, ipv4_payload_len, 0);
+nfq_ip_set_transport_header (pktb, ipv4_hdr);
+// 看看是 TCP 還是 UDP
+switch (ipv4_hdr->protocol) {
+  case 6: // TCP
+    struct tcphdr *th = nfq_tcp_get_hdr (ipv4_pktb);
+    char* tp = nfq_tcp_get_payload (th, ipv4_pktb);
+    // 做點事情 ......
+    break;
+  case 17: // UDP
+    struct udphdr *uh = nfq_udp_get_hdr(ipv4_pktb);
+    char* up = nfq_udp_get_payload (uh, ipv4_pktb);
+    // 做點事情 ......
+    break;
+  default:
+    // 做點事情 ......
+}
+pktb_free (ipv4_pktb);
+
+== 加上 mark 並送回 kernel
+------------------------------------------------------------------------
+nfq_nlmsg_verdict_put(nlh, id, NF_REPEAT);
+nfq_nlmsg_verdict_put_mark(nlh, 喜歡的編號);
+------------------------------------------------------------------------
