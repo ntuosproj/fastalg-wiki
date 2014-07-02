@@ -13,10 +13,15 @@
  . 此 daemon 會將封包加上標記，並告知 kernel 重跑整個 chain (`NF_REPEAT`)
  . 於是我們的 NFTables 設定可能會長這樣：
 ------------------------------------------------------------------------
+table ip filter {
+  chain prerouting {
+    type filter hook prerouting priority -155;
+    mark < 1 queue num 0 options bypass
+  }
+}
 table ip nat {
   chain prerounting {
-    type nat hook prerouting priority 4294967146;
-    mark < 1 queue num 0 options bypass
+    type nat hook prerouting priority -150;
     meta mark 1 dnat my_http_server_1:80
     meta mark 2 dnat my_http_server_2:80
     meta mark 3 dnat my_http_server_3:80
@@ -27,6 +32,8 @@ table ip nat {
   * queue 和 mark 編號可以自行指定，這裡我們使用第 0 個 queue
   * 封包剛進來時並沒有 mark，所以會進入 queue 中讓 daemon 處理
   * 重跑此 chain 時，因為 mark 已改變，不再進入 queue，所以我們可以以此為依據 DNAT 到不同的機器
+  * dnat 指令一定要放在 type nat 的 chain 裡。
+  * nat 只會收到整個連線的第一個封包，所以 queue 指令要放在 filter。
 
 == 查看封包內容
 執行完 `nfq_nlmsg_parse(nlh, attr)` 以後，我們可以在 `attr[NFQA_PAYLOAD]` 拿到封包內容（可能是 IPv4 或 IPv6），於是我們就能使用以下一些 *libnetfilter_queue* 提供的 helper functions 查看封包資料。
