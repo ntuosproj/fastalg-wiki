@@ -87,8 +87,8 @@
     並包含指向各個通訊協定實作的函式指標。
 
  - UDP 實作
-  * UDP 封包轉送示意圖，以下以 DNS 封包的轉送為例。 +
-    image:ReportImages/fastalg-nfqueue-udp-general.png["UDP General",width=640]
+  * UDP 封包轉送示意圖，以下以 DNS 封包的轉送為例。
+  * image:ReportImages/fastalg-nfqueue-udp-general.png["UDP General",width=640]
 
  - DNS 轉送應用
   * 若在 NAT 後方有多台 DNS server 負責解析不同 hostname 的 IP address，
