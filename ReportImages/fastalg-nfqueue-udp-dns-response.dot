@@ -1,0 +1,17 @@
+digraph G {
+	graph [layout=dot fontname="Cantarell,sans-serif"];
+	node [shape=Mrecord fontname="Cantarell,sans-serif"];
+	edge [fontname="Cantarell,sans-serif"];
+
+	subgraph cluster_kernel {
+		label = <<font point-size="20">Linux (kernel mode)</font>>;
+		color = "brown";
+		nft_nat_postrouting   [label="NFTables 規則 (nat, postrouting)"];
+	}
+
+	pkt_in  [label="DNS response 封包輸入"];
+	pkt_out [label="DNS response 封包輸出"];
+
+	pkt_in                 -> nft_nat_postrouting  [label=<<font color="red"><b>1</b></font>>];
+	nft_nat_postrouting    -> pkt_out              [label=<<font color="red"><b>2</b></font>>];
+}

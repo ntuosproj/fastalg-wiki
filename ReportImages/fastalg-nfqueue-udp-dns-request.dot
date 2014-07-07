@@ -1,0 +1,43 @@
+digraph G {
+	graph [layout=dot fontname="Cantarell,sans-serif"];
+	node [shape=Mrecord fontname="Cantarell,sans-serif"];
+	edge [fontname="Cantarell,sans-serif"];
+
+	subgraph cluster_kernel {
+		label = <<font point-size="20">Linux (kernel mode)</font>>;
+		color = "brown";
+		nft_filter_prerouting [label="NFTables 規則 (filter, prerouting)"];
+		nfqueue               [label="Netfilter user space queue"];
+		nft_nat_prerouting    [label="NFTables 規則 (nat, prerouting)"];
+	}
+
+	subgraph cluster_fastalg_nfqueue {
+		label = <<font point-size="20">fastalg-nfqueue (user mode)</font>>;
+		color = "blue";
+		netlink_socket [label="Netlink socket"];
+		udp_inspect [label="UDP 封包分析程式"];
+	}
+
+	subgraph cluster_fastalg_protocol {
+		label = <<font point-size="20">fastalg-protocol (user mode library)</font>>;
+		color = "green3";
+		dns_parser [label="DNS 分析函式"];
+		hostname_matcher [label="Hostname 配對函式"];
+	}
+
+	pkt_in  [label="DNS request 封包輸入"];
+	pkt_out [label="DNS request 封包輸出"];
+
+	pkt_in                 -> nft_filter_prerouting  [label=<<font color="red"><b>1</b></font>>];
+	nft_filter_prerouting  -> nfqueue                [label=<<font color="red"><b>2</b></font> Enqueue>];
+	nfqueue                -> netlink_socket         [label=<<font color="red"><b>3</b></font> Dequeue>];
+	netlink_socket         -> udp_inspect            [label=<<font color="blue"><b>4</b></font>>];
+	udp_inspect            -> dns_parser             [label=<<font color="blue"><b>5</b></font> packet list>];
+	dns_parser             -> udp_inspect;
+	udp_inspect            -> hostname_matcher       [label=<<font color="blue"><b>6</b></font> hostname>];
+	hostname_matcher       -> udp_inspect;
+	udp_inspect            -> nft_filter_prerouting  [label=<<font color="blue"><b>7</b></font> Set packet mark + Verdict>];
+
+	nft_filter_prerouting  -> nft_nat_prerouting     [label=<<font color="green4"><b>8</b></font>>];
+	nft_nat_prerouting     -> pkt_out                [label=<<font color="green4"><b>9</b></font>>];
+}

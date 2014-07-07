@@ -1,0 +1,137 @@
+== 第 12 組組員
+ - B01902003 林子傑
+ - B01902062 藍挺瑋
+ - B01902090 許伯駒
+ - B01902110 程鼎元
+
+== 摘要
+設計依據應用層 (Application Layer) 傳輸協定與其欄位內容進行網路位置轉換 (NAT) 的程式。
+
+== 實作
+ - Linux user mode 版本 (`raw5.cpp`)
+  * 使用 raw socket
+ - Linux netfilter queue 版本 (`fastalg-nfqueue`)
+  * 使用 kernel 中的 netfilter queue (nfqueue) 功能
+
+== Linux user mode 版本
+ - 目標
+  * 不用系統設定即可使用
+ - 功能
+  * TODO
+
+== Linux netfilter queue 版本
+ - 目標
+  * Linux 的 netfilter 已經包含許多封包轉送功能，我們嘗試利用它，
+    以期加速我們的開發速度，並更容易與現有系統整合。
+  * 我們的程式運行在 user mode，再藉由 netfilter queue 從 kernel
+    取得符合規則的封包（通常是特定通訊協定與特定 port 的封包）。
+  * 將程式執行在 user mode 不僅方便測試，也能使用各種現有的函式庫輔助開發。
+    同時因為不需要修改 kernel，省去了安裝與維護 kernel module 的困難，
+    使用者較易上手。但由於功能尚未實作完全，我們不太清楚效能是否會因此受影響。
+
+ - 執行需求
+  * Linux 3.10 以上的 Netfilter 模組。
+   ** IPTables 和 NFTables 應該都能使用，但我們只測試了 NFTables。
+      若要使用 NFTables，則需要 Linux 3.13 以上。
+      我們使用的版本是 Fedora 20 提供的 Linux 3.14。
+  * libmnl
+   ** 用來和 kernel 透過 netlink socket 溝通。
+  * libnetfilter_queue
+   ** 用來操作 kernel 中的 netfilter queue。其中還包含了許多輔助用的函式，
+      例如用來管裡封包的 pktbuff，和 IPv4 / IPv6 / TCP / UDP 封包
+      解析與偵錯用的函式。但因為這些輔助函式的實作有不少錯誤，
+      所以我們仍自行實作了不少替代用的函式。這些錯誤都已經向 netfilter
+      開發者回報，希望在下個版本的 libnetfilter_queue 能夠解決。
+  * GLib 2.12 以上
+   ** 提供各種常見資料結構的實作。我們使用的版本是 2.38。
+
+ - 編譯需求
+  * 支援 C99 的 C 編譯器，常見的 GCC 和 Clang 都能符合要求。
+  * pkg-config 或其他相容的實作。
+  * POSIX 相容的 make 和 shell。
+  * 若有修改程式，則需要 autoconf、automake、libtool。
+
+ - 程式架構
+  * 我們將程式拆為主程式和通訊協定解析函式庫兩個部份。主程式 `fastalg-nfqueue`
+    處理了大部分的工作，在需要得知應用層的資訊時，會呼叫通訊協定解析函式庫
+    `fastalg-protocol` 中的函式。因此如果要加入更多應用層通訊協定的支援時，
+    我們只需要修改 `fastalg-protocol` 即可，主程式完全不需要修改。
+    利用這樣的特性，我們以後還可能用此製作 plugin 系統。
+  * `fastalg-nfqueue` 因為要從 Linux kernel 讀取資料，所以高度依賴 Linux
+    提供的各種功能，無法移植到不同的平臺。相反的， `fastalg-protocol`
+    是設計來當作不同實作間共用的函式庫，因此編寫時很注重可攜性，
+    目前只使用了 `malloc` 、 `free` 和一些很基本的字串處理函式。
+  * `falgnfq-main.c`:
+    主程式的進入點，初始化地區和時區設定，並藉由環境變數得知使用者的
+    debug 參數。
+  * `falgnfq-private.h`:
+    各種內部使用的 macro 和 inline function，包含
+    compile-time 和 runtime 的 debug 狀態偵測、錯誤訊息回報，
+    以及儲存封包用的輔助結構。
+  * `falgnfq-config.c`:
+    讀取使用者設定值的工具，預計會有從 command line
+    和設定檔讀取兩種方式，目前只實作從 command line 讀取。
+  * `falgnfq-loop.c`:
+    接收、分析、暫存、傳送封包，並告知 kernel 我們對封包所作的決定。
+  * `falgnfq-dump.c`:
+    把從 netfilter queue 得到的封包內容印出來，一個一個 bit 印出，以觀察
+    bit-field 的實際排列狀況，來解決 endian 的相關問題。
+  * `falgnfq-tcp.c`:
+    產生用於回應 TCP client 和 server 的封包，目前尚未實作完成。
+  * `falgnfq-rng.c`:
+    安全的亂數產生器，目前是直接使用 `/dev/urandom` 。
+  * `falgproto.h`:
+    `fastalg-protocol` 提供的 public API。
+  * `falgproto.c`:
+    `fastalg-protocol` 中 public API 的實作，
+    並包含指向各個通訊協定實作的函式指標。
+
+ - UDP 實作
+  * UDP 封包轉送示意圖，以下以 DNS 封包的轉送為例。 +
+    image:ReportImages/fastalg-nfqueue-udp-general.png["UDP General",width=640]
+
+ - DNS 轉送應用
+  * 若在 NAT 後方有多台 DNS server 負責解析不同 hostname 的 IP address，
+    各司其職，解析領域不重疊，則 NAT 主機可將封包拆開來看內容，確認 request
+    的 hostname 屬於哪台 DNS server 負責的解析領域後，
+    再將此封包發給有能力解析的 DNS server。
+
+ - DNS 封包實際轉送過程：client DNS request
+  * image:ReportImages/fastalg-nfqueue-udp-dns-request.png["DNS request",
+    width=640,link="ReportImages/fastalg-nfqueue-udp-dns-request.svg"]
+  * 使用者必須事先在 NFTables 裡加入 NAT 的規則，譬如
+   「當封包的 mark 為 XXX 時，要將其轉發至 YYY server」。
+  * 從 client 來的封包先送到 NAT 主機，進入 NFTables 的轉送判定流程。
+    在流程中，一個沒有 mark 的封包經過 NFTables 的中
+    `type filter hook prerouting` 的 chain 時 (*#1*)，
+    會被保留至 netfilter queue，準備傳入 user space 給我們的程式分析 (*#2*)。
+    NFTables 是 Linux kernel 的一部分，有防火牆與 NAT 的功能，
+    在此借用其處理封包的能力，幫助我們接收與轉發封包。
+  * 透過 netfilter queue，複製好的封包內容會被傳送給 user mode 的
+    `fastalg-nfqueue` 這支程式 (*#3*)。複製的封包內容包含 IP header、
+    UDP header、DNS request 等，也就是從 network layer 到 application layer
+    的所有內容，可以自行 parse 出封包的各種資訊 (*#4*)。
+  * `fastalg-nfqueue` 就是我們設計的程式，可分析 DNS 封包的內容，
+    協助封包的轉發。這支程式查看 DNS 封包的內容 (*#5*)，分析其 request
+    適合由哪個 server 回應 (*#6*)，並給封包一個對應的 mark。
+  * 一個封包有了 mark， `fastalg-nfqueue` 會請這個封包重新跑一次 NFTables
+    的轉送判定流程 (*#7*)。此時因為封包已經加上了 mark，所以封包不會再進入
+    netfilter queue，而會通過並進入下一條規則，來到 `type nat hook prerouting`
+    的 chain (*#8*)。
+  * 由於一開始在封包到達前，我們已經在 NFTables 裡加入 NAT 的規則，
+    封包依據此規則進行 DNAT。特定的 mark，目的地被改成特定的 IP，
+    封包因而被轉發至持有該 IP 的 server，封包轉送的目標就如願達成 (*#9*)。
+
+ - DNS 封包實際轉送過程：server DNS response
+  * image:ReportImages/fastalg-nfqueue-udp-dns-response.png["DNS response",
+    width=320,link="ReportImages/fastalg-nfqueue-udp-dns-response.svg"]
+  * server 處理完 client 的 DNS request 封包，會將 DNS response
+    封包送回 NAT 主機 (*#1*)。
+  * 從 server 來的 DNS 封包比較好處理，因為 destination port 通常不會再是 53
+    （DNS的專用port），所以進來的封包不再需要經過我們的程式 `fastalg-nfqueue` 。
+    若是 destination port 還是 53，則另當別論，必須特殊處理，
+    不過這種狀況機率極低，正常連線不該會出現。
+  * 如此一來，封包不需經過我們的程式，直接交由 NFTable 處理。其 port
+    對應的是哪個 client，NFTables 進行 SNAT 時就將此封包的 source IP
+    轉為 NAT 主機的 IP，封包就能如願轉送回 client 手中 (*#2*)。
+
