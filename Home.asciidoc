@@ -1,6 +1,7 @@
 == 大綱與目標
  * link:Proposal[學期初 Proposal]
  * link:Benchmark[現有軟體效能測試]
+ * link:Report[學期末報告]
 
 == 預計完成事項
 [grid="rows"]
